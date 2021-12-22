@@ -19,7 +19,7 @@ def get_audio(filename):
         for i in range(0, audio_data["nframes"]):
             fmt = fmt + 'h'  # fmt should contain 'h'for each samples in wave file: 'hhhhh...'
 
-        if audio_data["nchannels"] is 2:
+        if audio_data["nchannels"] == 2:
             fmt = fmt + fmt
 
         audio_data["time"] = np.arange(0, audio_data["nframes"] / audio_data["rate"],
@@ -116,7 +116,7 @@ def main():
 
 
     plot_data = []
-    if audio_data["nchannels"] is 2:
+    if audio_data["nchannels"] == 2:
         plot_data.append([audio_data["amplitude"][i] for i in range(len(audio_data["amplitude"])) if i % 2 == 1])
         plot_data.append([audio_data["amplitude"][i] for i in range(len(audio_data["amplitude"])) if i % 2 == 0])
     else:

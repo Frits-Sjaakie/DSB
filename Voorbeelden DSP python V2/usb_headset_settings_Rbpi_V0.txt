@@ -1,0 +1,19 @@
+Python 3.5.3 (default, Sep 27 2018, 17:25:39) 
+[GCC 6.3.0 20170516] on linux
+Type "copyright", "credits" or "license()" for more information.
+>>> 
+============= RESTART: /home/pi/grove.py/grove/gpio/gpio_rpi.py =============
+>>> import pyaudio
+>>> p=pyaudio.Pyaudio()
+Traceback (most recent call last):
+  File "<pyshell#1>", line 1, in <module>
+    p=pyaudio.Pyaudio()
+AttributeError: module 'pyaudio' has no attribute 'Pyaudio'
+>>> p = pyaudio.PyAudio()
+>>> 
+==================== RESTART: /home/pi/usb headset V0.py ====================
+bcm2835 ALSA: IEC958/HDMI (hw:0,1)
+bcm2835 ALSA: IEC958/HDMI1 (hw:0,2)
+Jabra UC VOICE 750a MS mono: USB Audio (hw:1,0)
+dmix
+>>> 

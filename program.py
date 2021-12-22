@@ -33,7 +33,7 @@ def get_audio(filename):
 def get_audiofiles(folder):
     i = 0
     directory = __file__
-    while i < 2:
+    while i < 1:
         directory = os.path.abspath(os.path.join(directory, os.pardir))
         i += 1
     audiofiles_dir = directory + "\\" + folder
@@ -55,7 +55,7 @@ def save_wav_file(file_name, audio_data):
     # Open up a wav file
     i = 0
     directory = __file__
-    while i < 2:
+    while i < 1:
         directory = os.path.abspath(os.path.join(directory, os.pardir))
         i += 1
     wav_dir = directory + "\\" + "Python_made_audiofiles" + "\\" + file_name

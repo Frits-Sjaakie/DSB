@@ -51,6 +51,8 @@ def plot_audio(title, audio_data, plot_data):
     plt.show()
 
 
+
+
 def save_wav_file(file_name, audio_data):
     # Open up a wav file
     i = 0
@@ -61,26 +63,25 @@ def save_wav_file(file_name, audio_data):
     wav_dir = directory + "\\" + "Python_made_audiofiles" + "\\" + file_name
     wav_file = wave.open(wav_dir, "w")
 
-    # 44100 is the industry standard sample rate - CD quality.  If you need to
-    # save on file size you can adjust it downwards. The stanard for low quality
-    # is 8000 or 8kHz.
-    comptype = "NONE"
-    compname = "not compressed"
-    wav_file.setparams((audio_data["nchannels"], audio_data["sampwidth"], audio_data["rate"], audio_data["nframes"],
-                        comptype, compname))
+    freq1 = 100.0  # hertz
+    freq2 = 500
 
-    freq1 = 8400.0  # hertz
-    freq2 = 800
+    wav_file.setnchannels(audio_data['nchannels'])  # mono 1, for stereo 2
+    wav_file.setsampwidth(2)
+    wav_file.setframerate(audio_data['rate'])
+    maxint = 32767 - 1
+    N = audio_data["nframes"]  # no of samples
 
-    N = audio_data["nframes"]
-    Ts = 1 / audio_data["rate"]
+    Ts = 1 / (audio_data['rate'] * audio_data['nchannels'])  # sample time in s- should be halved for stereo
 
     if (N % 2) != 0:
         N += 1
-    maxint = 32767 - 1
+
     for i in range(N):
         value1 = round(maxint * i / N * math.sin(2 * math.pi * freq1 * i * Ts))  # data should be integer
         value2 = round(maxint * (N - i) / N * math.sin(2 * math.pi * freq2 * i * Ts))  # data should be integer
+        # value1 = round(1*maxint*math.sin(2*math.pi*freq1*i*Ts) ) #data should be integer
+        # value2 = round(1*maxint*math.sin(2*math.pi*freq2*i*Ts)) #data should be integer
         # samples are alternately written to Left or Right
         # this produces low tone right and high left
         # maxint*i/N sets increasing volume
@@ -92,7 +93,6 @@ def save_wav_file(file_name, audio_data):
         # random.randint(-32767, 32767)
         data = struct.pack('<h', value)
         wav_file.writeframesraw(data)
-
     wav_file.close()
 
     return

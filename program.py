@@ -51,8 +51,6 @@ def plot_audio(title, audio_data, plot_data):
     plt.show()
 
 
-
-
 def save_wav_file(file_name, audio_data):
     # Open up a wav file
     i = 0
@@ -92,7 +90,7 @@ def save_wav_file(file_name, audio_data):
         # print(value)
         # random.randint(-32767, 32767)
         data = struct.pack('<h', value)
-        wav_file.writeframesraw(data)
+        wav_file.writeframes(data)
     wav_file.close()
 
     return
@@ -110,10 +108,6 @@ def main():
 
     file = directory + "\\" + audiofiles[chosen_file]
     audio_data = get_audio(file)
-
-
-
-
 
     plot_data = []
     if audio_data["nchannels"] == 2:

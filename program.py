@@ -62,7 +62,7 @@ def make_new_file(file_name, directory, audio_data):
     audio_file.setnframes(audio_data["nframes"])
     audio_file.setcomptype(audio_data["comptype"], audio_data["compname"])
 
-    return audio_file
+    return new_file_dir, audio_file
 
 
 def HighPass(leftFourier, rightFourier, fk):
@@ -117,31 +117,42 @@ def main():
     # else:
     #     plot_data.append(audio_data["amplitude"])
 
-    output_file = make_new_file(title, directory, audio_data)
+    directory, output_file = make_new_file(title, directory, audio_data)
 
     duration = int(audio_data["nframes"] / audio_data["framerate"])  # whole file
 
     for num in range(duration):
-        print('Processing {}/{} s'.format(num + 1, duration))
+        print(f'Processing {num + 1}/{duration} s')
         data = np.fromstring(input_file.readframes(audio_data["framerate"]), dtype=np.int16)
-        left, right = data[0::2], data[1::2]  # left and right channel
-        leftFourier, rightFourier = np.fft.rfft(left), np.fft.rfft(right)  # FFT zodat filters toegepast kunnen worden
-        fk = 2200
-        leftFourier, rightFourier = HighPass(leftFourier, rightFourier, fk)
-        fk = 15000
-        leftFourier, rightFourier = LowPass(leftFourier, rightFourier, fk)
-        fkLow = 55
-        fkHigh = 66
-        leftFourier, rightFourier = BandSper(leftFourier, rightFourier, fkLow, fkHigh)
+        l_data, r_data = data[0::2], data[1::2]  # left and right channel
+
+        leftFourier, rightFourier = np.fft.rfft(l_data), np.fft.rfft(
+            r_data)  # FFT zodat filters toegepast kunnen worden
+        leftFourier, rightFourier = HighPass(leftFourier, rightFourier, 2200)
+        leftFourier, rightFourier = LowPass(leftFourier, rightFourier, 15000)
+        # leftFourier, rightFourier = BandSper(leftFourier, rightFourier, 55, 66)
+
         nl, nr = np.fft.irfft(leftFourier), np.fft.irfft(
             rightFourier)  # inverse FFT zodat er weer audio gemaakt van wordt
         ns = np.column_stack((nl, nr)).ravel().astype(np.int16)
-        # ns = np.column_stack((left, right)).ravel().astype(np.int16)
+
         output_file.writeframes(ns.tostring())
 
     input_file.close()
     output_file.close()
+    print(f"New file made at: {directory}")
 
 
 if __name__ == '__main__':
     main()
+
+# fmt = ''
+#         for i in range(0, audio_data["nframes"]):
+#             fmt = fmt + 'h'  # fmt should contain 'h'for each samples in wave file: 'hhhhh...'
+#
+#         if audio_data["nchannels"] == 2:
+#             fmt = fmt + fmt
+#
+#         audio_data["time"] = np.arange(0, audio_data["nframes"] / audio_data["rate"],
+#                                        1 / audio_data["rate"])  # start,stop, step fill array
+#         audio_data["amplitude"] = struct.unpack(fmt, data)  # from binary to integer

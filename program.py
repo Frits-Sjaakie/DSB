@@ -5,29 +5,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 
+Highpass = 2200  # Remove lower frequencies.
+Lowpass = 15000  # Remove higher frequencies.
 
-def get_audio(filename):
-    audio_data = {}
-    with wave.open(filename, mode=None) as audio:
-        audio_data["rate"] = audio.getframerate()
-        audio_data["nchannels"] = audio.getnchannels()
-        audio_data["sampwidth"] = audio.getsampwidth()
-        audio_data["nframes"] = audio.getnframes()
-        data = audio.readframes(audio_data["nframes"])
 
-        fmt = ''
-        for i in range(0, audio_data["nframes"]):
-            fmt = fmt + 'h'  # fmt should contain 'h'for each samples in wave file: 'hhhhh...'
-
-        if audio_data["nchannels"] == 2:
-            fmt = fmt + fmt
-
-        audio_data["time"] = np.arange(0, audio_data["nframes"] / audio_data["rate"],
-                                       1 / audio_data["rate"])  # start,stop, step fill array
-        audio_data["amplitude"] = struct.unpack(fmt, data)  # from binary to integer
-
-    audio.close()
-    return audio_data
+def get_audio_data(filename):
+    audio_read = wave.open(filename, 'r')
+    audio_data = {}  # dictionary voor audio parameters
+    parameters = list(audio_read.getparams())  # Get the parameters from the input.
+    # (nchannels, sampwidth, framerate, nframes, comptype, compname)
+    audio_data["nchannels"] = parameters[0]
+    audio_data["sampwidth"] = parameters[1]
+    audio_data["rate"] = parameters[2]
+    audio_data["nframes"] = parameters[3] = 0  # aantal samples wordt bepaald door "writeframes" functie
+    # This file is stereo, 2 bytes/sample, 44.1 kHz.
+    # paramters[3] = 0  # The number of samples will be set by writeframes.
+    return audio_read, parameters, audio_data
 
 
 def get_audiofiles(folder):
@@ -51,79 +44,64 @@ def plot_audio(title, audio_data, plot_data):
     plt.show()
 
 
-def save_wav_file(file_name, audio_data):
-    # Open up a wav file
+def make_new_file(file_name, directory, parameters):
+    # Open the output file
     i = 0
-    directory = __file__
+    # directory = __file__
     while i < 1:
         directory = os.path.abspath(os.path.join(directory, os.pardir))
         i += 1
-    wav_dir = directory + "\\" + "Python_made_audiofiles" + "\\" + file_name
-    wav_file = wave.open(wav_dir, "w")
+    new_file_dir = (directory + "\\" + "Python_made_audiofiles" + "\\" + file_name)
+    audio_file = wave.open(new_file_dir, "w")
+    audio_file.setparams(tuple(parameters))  # Use the same parameters as the input file.
+    return audio_file
 
-    freq1 = 100.0  # hertz
-    freq2 = 500
 
-    wav_file.setnchannels(audio_data['nchannels'])  # mono 1, for stereo 2
-    wav_file.setsampwidth(2)
-    wav_file.setframerate(audio_data['rate'])
-    maxint = 32767 - 1
-    N = audio_data["nframes"]  # no of samples
-
-    Ts = 1 / (audio_data['rate'] * audio_data['nchannels'])  # sample time in s- should be halved for stereo
-
-    if (N % 2) != 0:
-        N += 1
-
-    for i in range(N):
-        value1 = round(maxint * i / N * math.sin(2 * math.pi * freq1 * i * Ts))  # data should be integer
-        value2 = round(maxint * (N - i) / N * math.sin(2 * math.pi * freq2 * i * Ts))  # data should be integer
-        # value1 = round(1*maxint*math.sin(2*math.pi*freq1*i*Ts) ) #data should be integer
-        # value2 = round(1*maxint*math.sin(2*math.pi*freq2*i*Ts)) #data should be integer
-        # samples are alternately written to Left or Right
-        # this produces low tone right and high left
-        # maxint*i/N sets increasing volume
-        if (i % 2) == 0:
-            value = value2
-        else:
-            value = value1
-        # print(value)
-        # random.randint(-32767, 32767)
-        data = struct.pack('<h', value)
-        wav_file.writeframes(data)
-    wav_file.close()
-
-    return
+def proces_audio(audio_read, audio_write):
+    sz = audio_read.getframerate()  # Read and process 1 second at a time.
+    c = int(audio_read.getnframes() / sz)  # whole file
+    for num in range(c):
+        print('Processing {}/{} s'.format(num + 1, c))
+        da = np.fromstring(audio_read.readframes(sz), dtype=np.int16)
+        left, right = da[0::2], da[1::2]  # left and right channel
+        lf, rf = np.fft.rfft(left), np.fft.rfft(right)  # FFT zodat filters toegepast kunnen worden
+        lf[:Highpass], rf[:Highpass] = 0, 0  # High Pass >2.2kHz
+        lf[55:66], rf[55:66] = 0, 0  # Notch filter 55-66Hz
+        lf[Lowpass:], rf[Lowpass:] = 0, 0  # Low Pass <15kHz
+        nl, nr = np.fft.irfft(lf), np.fft.irfft(rf)  # inverse FFT zodat er weer audio gemaakt van wordt
+        # ns = np.column_stack((nl,nr)).ravel().astype(np.int16)
+        ns = np.column_stack((left, right)).ravel().astype(np.int16)
+        audio_write.writeframes(ns.tostring())
 
 
 def main():
-    directory, audiofiles = get_audiofiles("audiofiles")
+    directory, audiofiles = get_audiofiles("audiofiles")  # Vraag alle bestanden op en de map naam
     x = 1
-    for file in audiofiles:
+    for file in audiofiles:  # print alle bestanden in de map
         print(f"{x}. {file}")
         x += 1
 
     print("--------------------------------------------")
-    chosen_file = int(input("Kies een audiobestand: ")) - 1
+    chosen_file = int(input("Kies een audiobestand: ")) - 1  # kies audio bestand aan de hadn van nummer
+    title = audiofiles[chosen_file]
+    file = directory + "\\" + title
 
-    file = directory + "\\" + audiofiles[chosen_file]
-    audio_data = get_audio(file)
+    audio_read, parameters, audio_data = get_audio_data(file)
 
+    '''
     plot_data = []
     if audio_data["nchannels"] == 2:
         plot_data.append([audio_data["amplitude"][i] for i in range(len(audio_data["amplitude"])) if i % 2 == 1])
         plot_data.append([audio_data["amplitude"][i] for i in range(len(audio_data["amplitude"])) if i % 2 == 0])
     else:
         plot_data.append(audio_data["amplitude"])
+    '''
 
-    title = audiofiles[chosen_file]
-    x = 1
-    for i in plot_data:
-        plot_audio(title + " " + str(x), audio_data, i)
-        x += 1
+    audio_write = make_new_file(title, directory, parameters)
+    proces_audio(audio_read, audio_write)
 
-    # Save new file with changes
-    save_wav_file(title, audio_data)
+    audio_read.close()
+    audio_write.close()
 
 
 if __name__ == '__main__':

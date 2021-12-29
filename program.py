@@ -33,20 +33,31 @@ def get_audiofiles(folder):
 
 
 def plot_audio(title, audio_data, plot_data):
-    strt = 0
-    stp = int(np.trunc(audio_data["nframes"]))
-    plt.plot(audio_data["time"][strt:stp], plot_data[strt:stp])
+    x_start = 0
+    x_stop = int(np.trunc(audio_data["nframes"]))
+    plt.plot(audio_data["time"][x_start:x_stop], plot_data[x_start:x_stop])
     # plt.xscale('log')
     plt.title(title)
     plt.xlabel('time[s]')
     plt.ylabel('Amplitude ')
     plt.show()
 
-def plot_freqentie(frequenties, amplitude, plot_title):
-    strt = 0
-    stp = 20000
-    plt.plot(frequenties[strt:stp], amplitude[strt:stp])
+
+def plot_freqentie(plot_data, plot_title):
+    y_as = []
+    x_as = []
+    x = 1
+
+    for f in plot_data:
+        y_as.append(f)  #Verdeel data in variabele netjes over een nieuwe array
+        x_as.append(x)  #Tel uit hoeveel frequenties het bestand bevat en stop in array voor lengte van x-as
+        x = x + 1
+
+    x_start = 1
+    x_stop = 20000
+    plt.plot(x_as[x_start:x_stop], y_as[x_start:x_stop])
     #plt.xscale('log')
+    plt.yscale('log')
     plt.title(plot_title)
     plt.xlabel('Freqency[Hz]')
     plt.ylabel('Amplitude')
@@ -133,8 +144,6 @@ def main():
 
     duration = int(audio_data["nframes"] / audio_data["framerate"])  # whole file
 
-    frequency_prefilter_data = []
-    frequency_postfilter_data = []
     for num in range(duration):
         print(f'Processing {num + 1}/{duration} s')
         data = np.fromstring(input_file.readframes(audio_data["framerate"]), dtype=np.int16)
@@ -142,47 +151,27 @@ def main():
 
         # FFT zodat filters toegepast kunnen worden. Zodra in het frequentiedomein dan kunnen de filters worden
         # toegepast per frequentie. Per seconde wordt er gekeken welke frequenties zich in de samples bevinden.
-        prefilter_leftFourier, prefilter_rightFourier = np.fft.rfft(l_data), np.fft.rfft(r_data)
-        frequency_prefilter_data.append(prefilter_leftFourier)
+        leftFourier, rightFourier = np.fft.rfft(l_data), np.fft.rfft(r_data)
+        if(num == int(duration / 2)):
+            frequency_prefilter_data = np.fft.rfft(l_data)
 
         # Filters
-        postfilter_leftFourier, postfilter_rightFourier = HighPass(prefilter_leftFourier, prefilter_rightFourier, 2200)
-        postfilter_leftFourier, postfilter_rightFourier = LowPass(postfilter_leftFourier, postfilter_rightFourier, 15000)
-        # postfilter_leftFourier, postfilter_rightFourier = BandSper(postfilter_leftFourier, postfilter_rightFourier, 55, 66)
+        leftFourier, rightFourier = HighPass(leftFourier, rightFourier, 2200)
+        leftFourier, rightFourier = LowPass(leftFourier, rightFourier, 15000)
+        #leftFourier, rightFourier = BandSper(leftFourier, rightFourier, 55, 66)
 
-        #print(leftFourier)
-        frequency_postfilter_data.append(postfilter_leftFourier)
+        if(num == int(duration / 2)):
+            frequency_postfilter_data = leftFourier
+
         # inverse FFT zodat er weer audio gemaakt van wordt. Conversie van frequentiedomein naar tijdsdomein.
-        new_l_data, new_right_data = np.fft.irfft(postfilter_leftFourier), np.fft.irfft(postfilter_rightFourier)
+        new_l_data, new_right_data = np.fft.irfft(leftFourier), np.fft.irfft(rightFourier)
         new_wav_data = np.column_stack((new_l_data, new_right_data)).ravel().astype(np.int16)
 
         output_file.writeframes(new_wav_data.tostring())
 
-    y_as = []
-    x_as = []
-    x = 1
-    frameNr = int((len(frequency_prefilter_data) / 2)) #nr van middelste frame uit audiofile
-    singelframe = frequency_prefilter_data[frameNr] #neem het middelste frame uit de audiofile
 
-    for f in singleframe:
-        y_as.append(f)  #Verdeel data in variabele netjes over een nieuwe array
-        x_as.append(x)  #Tel uit hoeveel frequenties het bestand bevat en stop in array voor lengte van x-as
-        x = x + 1
-
-    plot_freqentie(x_as, y_as, "FFT pre-filter data left channel")
-
-    y_as.clear()
-    x_as.clear()
-    x = 1
-    frameNr = int((len(frequency_postfilter_data) / 2)) #nr van middelste frame uit audiofile
-    singleframe = frequency_postfilter_data[frameNr] #neem het middelste frame uit de audiofile
-
-    for f in singleframe:
-        y_as.append(f)  #Verdeel data in variabele netjes over een nieuwe array
-        x_as.append(x)  #Tel uit hoeveel frequenties het bestand bevat en stop in array voor lengte van x-as
-        x = x + 1
-
-    plot_freqentie(x_as, y_as, "FFT post-filter data left channel")
+    plot_freqentie(frequency_prefilter_data, "FFT pre-filter data left channel")
+    plot_freqentie(frequency_postfilter_data, "FFT post-filter data left channel")
 
 
     input_file.close()

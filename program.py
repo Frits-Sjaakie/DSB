@@ -3,8 +3,32 @@ import wave
 import struct
 import numpy as np
 import matplotlib.pyplot as plt
+from datetime import datetime
 import math
 
+
+def select_file(zoekopdracht):
+    directory, audiofiles = get_audiofiles(zoekopdracht)  # Vraag alle bestanden op en de map naam
+    referentie = False
+    x = 1
+    for file in audiofiles:  # print alle bestanden in de map
+        print(f"{x}. {file}")
+        x += 1
+    if zoekopdracht == "referenties":
+        print("\r\nAls geen referentie gewenst is, typ 0.")
+    print("--------------------------------------------")
+    chosen_file = int(input("Kies uit " + zoekopdracht + ": ")) - 1  # kies audio bestand aan de hadn van nummer
+    if (chosen_file + 1) != 0:
+        title = audiofiles[chosen_file]
+        audio_file = directory + "\\" + title
+        input_file = wave.open(audio_file, 'r')
+        audio_data = get_audio_data(input_file)
+        referentie = True
+    else:
+        title = "none selected"
+        input_file = "none selected"
+        audio_data = "none selected"
+    return directory, title, input_file, audio_data, referentie
 
 def get_audio_data(audio):
     audio_data = {}  # dictionary voor audio parameters
@@ -43,7 +67,7 @@ def plot_audio(title, audio_data, plot_data):
     plt.show()
 
 
-def plot_freqentie(plot_data, plot_title):
+def plot_freqentie(plot_data, timestamp, plot_title):
     y_as = []
     x_as = []
     x = 1
@@ -58,7 +82,7 @@ def plot_freqentie(plot_data, plot_title):
     plt.plot(x_as[x_start:x_stop], y_as[x_start:x_stop])
     #plt.xscale('log')
     plt.yscale('log')
-    plt.title(plot_title)
+    plt.title(plot_title + " - " + timestamp)
     plt.xlabel('Freqency[Hz]')
     plt.ylabel('Amplitude')
     plt.show()
@@ -117,20 +141,16 @@ def save_file():
 
 
 def main():
-    directory, audiofiles = get_audiofiles("audiofiles")  # Vraag alle bestanden op en de map naam
-    x = 1
-    for file in audiofiles:  # print alle bestanden in de map
-        print(f"{x}. {file}")
-        x += 1
+    timestamp = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    print(timestamp)
 
-    print("--------------------------------------------")
-    chosen_file = int(input("Kies een audiobestand: ")) - 1  # kies audio bestand aan de hadn van nummer
-    title = audiofiles[chosen_file]
-    audio_file = directory + "\\" + title
+    # inladen van "vervuilde" audio
+    directory, title, input_file, audio_data, referentie = select_file("audiofiles")
+    print("\r\n\r\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n\r\n")
+    # inladen van "vervuilde" audio
+    ref_directory, ref_title, ref_file, ref_audio_data, referentie = select_file("referenties")
 
-    input_file = wave.open(audio_file, 'r')
 
-    audio_data = get_audio_data(input_file)
     '''
     plot_data = []
     if audio_data["nchannels"] == 2:
@@ -141,8 +161,23 @@ def main():
     '''
 
     directory, output_file = make_new_file(title, directory, audio_data)
-
     duration = int(audio_data["nframes"] / audio_data["framerate"])  # whole file
+    if referentie == True:
+        ref_duration = int(ref_audio_data["nframes"] / ref_audio_data["framerate"])
+
+        if ref_duration < duration:
+            print("refduration < duration")
+            ref_frame = int(ref_duration / 2)
+        elif ref_duration > duration:
+            print("refduration > duration")
+            ref_frame = int((ref_duration / duration) * 2)
+        elif ref_duration == duration:
+            ref_frame = int(ref_duration / 2)
+
+        print("duration: ", duration)
+        print("ref_duration: ", ref_duration)
+        print("ref_frame: ", ref_frame)
+
 
     for num in range(duration):
         print(f'Processing {num + 1}/{duration} s')
@@ -152,15 +187,15 @@ def main():
         # FFT zodat filters toegepast kunnen worden. Zodra in het frequentiedomein dan kunnen de filters worden
         # toegepast per frequentie. Per seconde wordt er gekeken welke frequenties zich in de samples bevinden.
         leftFourier, rightFourier = np.fft.rfft(l_data), np.fft.rfft(r_data)
-        if(num == int(duration / 2)):
-            frequency_prefilter_data = np.fft.rfft(l_data)
 
         # Filters
         leftFourier, rightFourier = HighPass(leftFourier, rightFourier, 2200)
         leftFourier, rightFourier = LowPass(leftFourier, rightFourier, 15000)
         #leftFourier, rightFourier = BandSper(leftFourier, rightFourier, 55, 66)
 
-        if(num == int(duration / 2)):
+        if num == int(duration / 2):
+            print("sample")
+            frequency_prefilter_data = np.fft.rfft(l_data)
             frequency_postfilter_data = leftFourier
 
         # inverse FFT zodat er weer audio gemaakt van wordt. Conversie van frequentiedomein naar tijdsdomein.
@@ -169,26 +204,26 @@ def main():
 
         output_file.writeframes(new_wav_data.tostring())
 
+        # referentiegeluid plot sample verkrijgen
+        if referentie == True:
+            ref_data = np.fromstring(ref_file.readframes(ref_audio_data["framerate"]), dtype=np.int16)
+            if num == ref_frame:
+                print("refsample")
+                frequency_ref_data = np.fft.rfft(ref_data)
 
-    plot_freqentie(frequency_prefilter_data, "FFT pre-filter data left channel")
-    plot_freqentie(frequency_postfilter_data, "FFT post-filter data left channel")
+    plot_freqentie(frequency_prefilter_data, timestamp, "FFT pre-filter data left channel")
+    plot_freqentie(frequency_postfilter_data, timestamp, "FFT post-filter data left channel")
+    if referentie == True:
+        plot_freqentie(frequency_ref_data, timestamp, "FFT referentie vogel")
+        ref_file.close()
 
 
     input_file.close()
     output_file.close()
-    print(f"New file made at: {directory}")
 
+    print(f"New file made at: {directory}")
 
 if __name__ == '__main__':
     main()
 
-# fmt = ''
-#         for i in range(0, audio_data["nframes"]):
-#             fmt = fmt + 'h'  # fmt should contain 'h'for each samples in wave file: 'hhhhh...'
-#
-#         if audio_data["nchannels"] == 2:
-#             fmt = fmt + fmt
-#
-#         audio_data["time"] = np.arange(0, audio_data["nframes"] / audio_data["rate"],
-#                                        1 / audio_data["rate"])  # start,stop, step fill array
-#         audio_data["amplitude"] = struct.unpack(fmt, data)  # from binary to integer
+

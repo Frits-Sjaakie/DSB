@@ -43,6 +43,18 @@ def get_audio_data(audio):
     audio_data["compname"]  = parameters[5]
     # This file is stereo, 2 bytes/sample, 44.1 kHz.
     # paramters[3] = 0  # The number of samples will be set by writeframes.
+
+    waveformdata = audio.readframes(audio_data["nframes"])
+    fmt = ''
+    for i in range(0, audio_data["nframes"]):
+        fmt = fmt + 'h'  # fmt should contain 'h'for each samples in wave file: 'hhhhh...'
+
+    if audio_data["nchannels"] == 2:
+        fmt = fmt + fmt
+
+    audio_data["time"] = np.arange(0, audio_data["nframes"] / audio_data["framerate"],
+                                   1 / audio_data["framerate"])  # start,stop, step fill array
+    audio_data["amplitude"] = struct.unpack(fmt, waveformdata)  # from binary to integer
     return audio_data
 
 
@@ -56,14 +68,30 @@ def get_audiofiles(folder):
     return audiofiles_dir, os.listdir(audiofiles_dir)
 
 
-def plot_audio(title, audio_data, plot_data):
+def plot_tijd(audio_data, timestamp, plot_title):
+    plot_data = []
+    if audio_data["nchannels"] == 2:
+        plot_data.append([audio_data["amplitude"][i] for i in range(len(audio_data["amplitude"])) if i % 2 == 1])
+        plot_data.append([audio_data["amplitude"][i] for i in range(len(audio_data["amplitude"])) if i % 2 == 0])
+    else:
+        plot_data.append(audio_data["amplitude"])
+
     x_start = 0
     x_stop = int(np.trunc(audio_data["nframes"]))
+
+    print(x_start)
+    print(x_stop)
+    print(audio_data["time"][x_start])
+    print(audio_data["time"][x_stop])
+    print(plot_data[x_start])
+    print(plot_data[x_stop])
+
     plt.plot(audio_data["time"][x_start:x_stop], plot_data[x_start:x_stop])
     # plt.xscale('log')
-    plt.title(title)
-    plt.xlabel('time[s]')
-    plt.ylabel('Amplitude ')
+    # plt.yscale('log')
+    plt.title(plot_title + " - " + timestamp)
+    plt.xlabel('time [s]')
+    plt.ylabel('Amplitude')
     plt.show()
 
 
@@ -83,7 +111,7 @@ def plot_freqentie(plot_data, timestamp, plot_title):
     #plt.xscale('log')
     plt.yscale('log')
     plt.title(plot_title + " - " + timestamp)
-    plt.xlabel('Freqency[Hz]')
+    plt.xlabel('Freqency [Hz]')
     plt.ylabel('Amplitude')
     plt.show()
 
@@ -132,14 +160,6 @@ def inv_fourier_transform(leftFourier, rightFourier):
     return ns
 
 
-def frourier_transform():
-    pass
-
-
-def save_file():
-    pass
-
-
 def main():
     timestamp = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     print(timestamp)
@@ -150,15 +170,8 @@ def main():
     # inladen van "vervuilde" audio
     ref_directory, ref_title, ref_file, ref_audio_data, referentie = select_file("referenties")
 
-
-    '''
-    plot_data = []
-    if audio_data["nchannels"] == 2:
-        plot_data.append([audio_data["amplitude"][i] for i in range(len(audio_data["amplitude"])) if i % 2 == 1])
-        plot_data.append([audio_data["amplitude"][i] for i in range(len(audio_data["amplitude"])) if i % 2 == 0])
-    else:
-        plot_data.append(audio_data["amplitude"])
-    '''
+    #data voor plot audio in tijd
+    plot_tijd(audio_data, timestamp, "Waveform pre-filter")
 
     directory, output_file = make_new_file(title, directory, audio_data)
     duration = int(audio_data["nframes"] / audio_data["framerate"])  # whole file
@@ -177,7 +190,6 @@ def main():
         print("duration: ", duration)
         print("ref_duration: ", ref_duration)
         print("ref_frame: ", ref_frame)
-
 
     for num in range(duration):
         print(f'Processing {num + 1}/{duration} s')

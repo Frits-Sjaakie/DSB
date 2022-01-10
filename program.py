@@ -4,7 +4,6 @@ import struct
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
-import math
 
 def select_file(zoekopdracht):
     # Geef keuze opties voor bestanden en return gekozen bestand
@@ -90,6 +89,7 @@ def plot_tijd(audio_data, timestamp, plot_title):
     left_plotdata = []
     right_plotdata = []
     for value in audio_data["time"]:
+        # Haal voor elke tijdstap de waarde uit de lastige list in list en stop het direct in de nieuwe list
         time_plotdata.append(value)
         left_plotdata.append(left_amplitude[0][index])
         if(audio_data["nchannels"] == 2):
@@ -102,6 +102,7 @@ def plot_tijd(audio_data, timestamp, plot_title):
     x_stop = len(time_plotdata)
 
     n = 1
+    # Als stereo, voer dan nogmaals uit voor rechter kanaal. Anders alleen links.
     while n <= audio_data["nchannels"]:
         # plt.xscale('log')
         # plt.yscale('log')
@@ -289,11 +290,6 @@ def main():
         else:
             new_wav_data = np.column_stack(new_l_data).ravel().astype(np.int16)
 
-        # Converteer output van FFT naar een list van integers
-        new_wav_data_list = new_wav_data.tolist()
-        for n in new_wav_data_list:
-            new_waveformdata.append(n)
-
         # Sla data op in nieuw bestand
         output_file_title.writeframes(new_wav_data.tostring())
 
@@ -312,6 +308,9 @@ def main():
     filtered_audio_data, filtered_waveformdata = get_audio_data(wave.open(output_file, 'r'))
     filtered_audio_data = amplitude_data(filtered_waveformdata, filtered_audio_data)
     plot_tijd(filtered_audio_data, timestamp, "Waveform post-filter")
+
+    # Sluit bestanden
+    output_file_title.close()
 
 
     # Verwerking van referentiedata als er een referentiebestand is gekozen. Anders sla over en sluit programma
